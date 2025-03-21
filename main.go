@@ -2,7 +2,10 @@ package main
 
 import (
 	"fmt"
+	"io"
+	"log"
 	"net/http"
+	"os"
 )
 
 func hello(w http.ResponseWriter, req *http.Request) {
@@ -15,9 +18,28 @@ func headers(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// streaming a large file
+
+func streamLargeFileHandler(w http.ResponseWriter, req *http.Request) {
+	file, err := os.Open("imgs/test.JPG")
+	if err != nil {
+		http.Error(w, "File not found", http.StatusNotFound)
+		return
+	}
+	defer file.Close()
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Content-Disposition", "attachment; filename=largefile.mp4")
+
+	_, err = io.Copy(w, file)
+	if err != nil {
+		http.Error(w, "Error streaming file", http.StatusInternalServerError)
+		return
+	}
+}
+
 func main() {
 	http.HandleFunc("/hello", hello)
 	http.HandleFunc("/headers", headers)
-
-	http.ListenAndServe(":8090", nil)
+	http.HandleFunc("/download", streamLargeFileHandler)
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }
